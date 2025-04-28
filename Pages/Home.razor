@@ -4,130 +4,139 @@
 
 <PageTitle>Home</PageTitle>
 
-<div class="container mt-5">
-    <div class="row">
-        <!-- Formulär: Lägg till nytt jobb -->
-        <div class="col-md-6">
-            <h3>Lägg till nytt jobb</h3>
-            <!-- Här bygger vi formuläret -->
-            <EditForm Model="@newJob" OnValidSubmit="@CreateJobAsync">
-                <DataAnnotationsValidator />
-                <ValidationSummary />
-
-                <div class="mb-3">
-                    <label class="form-label">Företag</label>
-                    <InputText class="form-control" @bind-Value="newJob.CompanyName" />
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-12 col-lg-10">
+            <div class="row g-5">
+                <div class="col-12 col-md-6">
+                    <h3>Lägg till nytt jobb</h3>
+                    <EditForm Model="@newJob" OnValidSubmit="@CreateJobAsync">
+                        <DataAnnotationsValidator />
+                        <ValidationSummary />
+                        <div class="mb-3">
+                            <label class="form-label">Företag</label>
+                            <InputText class="@(companyExists ? "form-control is-invalid" : "form-control")"
+                                       @bind-Value="newJob.CompanyName"
+                                       @oninput="CheckCompanyExists" />
+                            @if (companyExists)
+                            {
+                                <div class="invalid-feedback">
+                                    Företaget verkar redan finnas.
+                                </div>
+                            }
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Titel</label>
+                            <InputText class="form-control" @bind-Value="newJob.Title" />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Anteckningar</label>
+                            <InputTextArea class="form-control" @bind-Value="newJob.Notes" />
+                        </div>
+                        <button type="submit" class="btn btn-primary">Spara jobb</button>
+                    </EditForm>
                 </div>
 
-                <div class="mb-3">
-                    <label class="form-label">Titel</label>
-                    <InputText class="form-control" @bind-Value="newJob.Title" />
-                </div>
-
-                <div class="mb-3">
-                    <label class="form-label">Anteckningar</label>
-                    <InputTextArea class="form-control" @bind-Value="newJob.Notes" />
-                </div>
-
-                <button type="submit" class="btn btn-primary">Spara jobb</button>
-            </EditForm>
-
-        </div>
-
-        <!-- Lista: Visar alla jobb -->
-        <div class="col-6">
-            <h3>Sökta jobb</h3>
-
-            @if (applications is null)
-            {
-                <p>Laddar jobb...</p>
-            }
-            else if (!applications.Any())
-            {
-                <p>Inga jobb hittades.</p>
-            }
-            else
-            {
-                <table class="table table-striped">
-                    <thead>
-                        <tr>
-                            <th>Företag</th>
-                            <th>Titel</th>
-                            <th>Datum</th>
-                            <th>Status</th>
-                            <th>Anteckningar</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var app in applications.OrderByDescending(a => a.ApplicationDate))
-                        {
-                            <tr style="cursor:pointer;" @onclick="() => EditJob(app)">
-                                <td class="text-nowrap">@app.CompanyName</td>
-                                <td class="text-nowrap">@app.Title</td>
-                                <td class="text-nowrap">@app.ApplicationDate.ToString("yyyy-MM-dd")</td>
-                                <td class="text-nowrap">
-                                    <span class="@GetStatusClass(app.Status)">
-                                        @app.Status
-                                    </span>
-                                </td>
-                                <td class="text-nowrap">
-                                    @(TruncateNotes(app.Notes, 50))
-                                </td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            }
-            <!-- Modal -->
-            @if (selectedJob is not null)
-            {
-                <div class="modal fade show" style="display:block; background-color: rgba(0,0,0,0.5);" tabindex="-1">
-                    <div class="modal-dialog">
-                        <div class="modal-content">
-                            <div class="modal-header">
-                                <h5 class="modal-title">Redigera jobb</h5>
-                                <button type="button" class="btn-close" @onclick="CloseModal"></button>
-                            </div>
-                            <div class="modal-body">
-                                <div class="mb-3">
-                                    <strong>Företag:</strong> @selectedJob.CompanyName
+                <div class="col-12 col-md-6">
+                    <h3>Sökta jobb</h3>
+                    @if (applications is null)
+                    {
+                        <p>Laddar jobb...</p>
+                    }
+                    else if (!applications.Any())
+                    {
+                        <p>Inga jobb hittades.</p>
+                    }
+                    else
+                    {
+                        <div class="table-responsive-md">
+                            <table class="table table-striped table-hover align-middle">
+                                <thead>
+                                    <tr>
+                                        <th>Företag</th>
+                                        <th>Titel</th>
+                                        <th>
+                                            <button class="btn btn-link p-0 text-decoration-none d-inline-flex align-items-center" @onclick="ToggleSort">
+                                                <span>Datum</span>
+                                                <span class="ms-1">@((sortDescending ? "↓" : "↑"))</span>
+                                            </button>
+                                        </th>
+                                        <th>Status</th>
+                                        <th style="max-width: 200px;">Anteckningar</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var app in SortedApplications)
+                                    {
+                                        <tr style="cursor:pointer;" @onclick="() => EditJob(app)">
+                                            <td class="text-truncate" style="max-width: 150px;">@app.CompanyName</td>
+                                            <td class="text-truncate" style="max-width: 150px;">@app.Title</td>
+                                            <td class="text-nowrap" style="min-width: 120px;">@app.ApplicationDate.ToString("yyyy-MM-dd")</td>
+                                            <td>
+                                                <span class="@GetStatusClass(app.Status)">
+                                                    @app.Status
+                                                </span>
+                                            </td>
+                                            <td class="text-truncate" style="max-width: 200px;">@(TruncateNotes(app.Notes, 50))</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    @if (selectedJob is not null)
+                    {
+                        <div class="modal fade show d-block" style="background-color: rgba(0,0,0,0.5);" tabindex="-1">
+                            <div class="modal-dialog">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title">Redigera jobb</h5>
+                                        <button type="button" class="btn-close" @onclick="CloseModal"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <div class="mb-3">
+                                            <strong>Företag:</strong> @selectedJob.CompanyName
+                                        </div>
+                                        <div class="mb-3">
+                                            <strong>Titel:</strong> @selectedJob.Title
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">Anteckningar</label>
+                                            <InputTextArea class="form-control" @bind-Value="editJob.Notes" style="height:auto; min-height: 100px;" />
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">Status</label>
+                                            <InputSelect class="form-control" @bind-Value="editJob.Status">
+                                                <option value="Skickat">Skickat</option>
+                                                <option value="Ansökt">Ansökt</option>
+                                                <option value="Intervju">Intervju</option>
+                                                <option value="Avslutat">Avslutat</option>
+                                                <option value="Anställt">Anställt</option>
+                                            </InputSelect>
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button class="btn btn-secondary" @onclick="CloseModal">Avbryt</button>
+                                        <button class="btn btn-danger" @onclick="DeleteJobAsync">Ta bort</button>
+                                        <button class="btn btn-primary" @onclick="UpdateJobAsync">Spara ändringar</button>
+                                    </div>
                                 </div>
-                                <div class="mb-3">
-                                    <strong>Titel:</strong> @selectedJob.Title
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label">Anteckningar</label>
-                                    <InputTextArea class="form-control" @bind-Value="editJob.Notes" style="height:auto; min-height: 100px;" />
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label">Status</label>
-                                    <InputSelect class="form-control" @bind-Value="editJob.Status">
-                                        <option value="Skickat">Skickat</option>
-                                        <option value="Ansökt">Ansökt</option>
-                                        <option value="Intervju">Intervju</option>
-                                        <option value="Avslutat">Avslutat</option>
-                                        <option value="Anställt">Anställt</option>
-                                    </InputSelect>
-                                </div>
-                            </div>
-                            <div class="modal-footer">
-                                <button class="btn btn-secondary" @onclick="CloseModal">Avbryt</button>
-                                <button class="btn btn-danger" @onclick="DeleteJobAsync">Ta bort</button>
-                                <button class="btn btn-primary" @onclick="UpdateJobAsync">Spara ändringar</button>
                             </div>
                         </div>
-                    </div>
+                    }
                 </div>
-            }
+            </div>
         </div>
     </div>
 </div>
+
 
 @code {
     private CreateJobRequest newJob = new();
     private List<JobApplicationDto>? applications;
     private UpdateJobRequest editJob = new();
     private JobApplicationDto? selectedJob;
+    private bool companyExists = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -229,5 +238,34 @@
 
         return notes.Length <= maxLength ? notes : notes.Substring(0, maxLength) + "...";
     }
+
+    private bool sortDescending = true;
+
+    private IEnumerable<JobApplicationDto> SortedApplications =>
+        sortDescending
+            ? applications.OrderByDescending(a => a.ApplicationDate)
+            : applications.OrderBy(a => a.ApplicationDate);
+
+    private void ToggleSort()
+    {
+        sortDescending = !sortDescending;
+    }
+
+    private void CheckCompanyExists(ChangeEventArgs e)
+    {
+        var input = e.Value?.ToString()?.Trim().ToLowerInvariant() ?? string.Empty;
+
+        if (string.IsNullOrEmpty(input) || input.Length < 3)
+        {
+            companyExists = false;
+            return;
+        }
+
+        companyExists = applications?.Any(app =>
+            !string.IsNullOrWhiteSpace(app.CompanyName) &&
+            app.CompanyName.Trim().ToLowerInvariant().StartsWith(input.Substring(0, Math.Min(5, input.Length)))
+        ) ?? false;
+    }
+
 }
 
