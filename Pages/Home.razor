@@ -1,4 +1,6 @@
 ﻿@page "/"
+@using JobTracker.Client.Models
+@inject HttpClient Http
 
 <PageTitle>Home</PageTitle>
 
@@ -8,12 +10,224 @@
         <div class="col-md-6">
             <h3>Lägg till nytt jobb</h3>
             <!-- Här bygger vi formuläret -->
+            <EditForm Model="@newJob" OnValidSubmit="@CreateJobAsync">
+                <DataAnnotationsValidator />
+                <ValidationSummary />
+
+                <div class="mb-3">
+                    <label class="form-label">Företag</label>
+                    <InputText class="form-control" @bind-Value="newJob.CompanyName" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Titel</label>
+                    <InputText class="form-control" @bind-Value="newJob.Title" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Anteckningar</label>
+                    <InputTextArea class="form-control" @bind-Value="newJob.Notes" />
+                </div>
+
+                <button type="submit" class="btn btn-primary">Spara jobb</button>
+            </EditForm>
+
         </div>
 
         <!-- Lista: Visar alla jobb -->
-        <div class="col-md-6">
+        <div class="col-6">
             <h3>Sökta jobb</h3>
-            <!-- Här bygger vi listan -->
+
+            @if (applications is null)
+            {
+                <p>Laddar jobb...</p>
+            }
+            else if (!applications.Any())
+            {
+                <p>Inga jobb hittades.</p>
+            }
+            else
+            {
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Företag</th>
+                            <th>Titel</th>
+                            <th>Datum</th>
+                            <th>Status</th>
+                            <th>Anteckningar</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var app in applications.OrderByDescending(a => a.ApplicationDate))
+                        {
+                            <tr style="cursor:pointer;" @onclick="() => EditJob(app)">
+                                <td class="text-nowrap">@app.CompanyName</td>
+                                <td class="text-nowrap">@app.Title</td>
+                                <td class="text-nowrap">@app.ApplicationDate.ToString("yyyy-MM-dd")</td>
+                                <td class="text-nowrap">
+                                    <span class="@GetStatusClass(app.Status)">
+                                        @app.Status
+                                    </span>
+                                </td>
+                                <td class="text-nowrap">
+                                    @(TruncateNotes(app.Notes, 50))
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+            <!-- Modal -->
+            @if (selectedJob is not null)
+            {
+                <div class="modal fade show" style="display:block; background-color: rgba(0,0,0,0.5);" tabindex="-1">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Redigera jobb</h5>
+                                <button type="button" class="btn-close" @onclick="CloseModal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="mb-3">
+                                    <strong>Företag:</strong> @selectedJob.CompanyName
+                                </div>
+                                <div class="mb-3">
+                                    <strong>Titel:</strong> @selectedJob.Title
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Anteckningar</label>
+                                    <InputTextArea class="form-control" @bind-Value="editJob.Notes" style="height:auto; min-height: 100px;" />
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Status</label>
+                                    <InputSelect class="form-control" @bind-Value="editJob.Status">
+                                        <option value="Skickat">Skickat</option>
+                                        <option value="Ansökt">Ansökt</option>
+                                        <option value="Intervju">Intervju</option>
+                                        <option value="Avslutat">Avslutat</option>
+                                        <option value="Anställt">Anställt</option>
+                                    </InputSelect>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button class="btn btn-secondary" @onclick="CloseModal">Avbryt</button>
+                                <button class="btn btn-danger" @onclick="DeleteJobAsync">Ta bort</button>
+                                <button class="btn btn-primary" @onclick="UpdateJobAsync">Spara ändringar</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
         </div>
     </div>
 </div>
+
+@code {
+    private CreateJobRequest newJob = new();
+    private List<JobApplicationDto>? applications;
+    private UpdateJobRequest editJob = new();
+    private JobApplicationDto? selectedJob;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadApplicationsAsync();
+    }
+
+    private async Task LoadApplicationsAsync()
+    {
+        applications = await Http.GetFromJsonAsync<List<JobApplicationDto>>("api/Jobs");
+    }
+
+    private async Task CreateJobAsync()
+    {
+        var response = await Http.PostAsJsonAsync("api/Jobs", newJob);
+
+        if (response.IsSuccessStatusCode)
+        {
+            newJob = new();
+            await LoadApplicationsAsync();
+        }
+    }
+
+    private void OpenModal(JobApplicationDto job)
+    {
+        selectedJob = job;
+        editJob = new UpdateJobRequest
+            {
+                Status = job.Status,
+                Notes = job.Notes
+            };
+    }
+
+
+    private void EditJob(JobApplicationDto job)
+    {
+        selectedJob = job;
+        editJob = new UpdateJobRequest
+            {
+                Status = job.Status,
+                Notes = job.Notes
+            };
+    }
+
+
+    private void CloseModal()
+    {
+        selectedJob = null;
+    }
+
+    private async Task UpdateJobAsync()
+    {
+        if (selectedJob is not null)
+        {
+            var update = new UpdateJobRequest
+                {
+                    Status = selectedJob.Status,
+                    Notes = selectedJob.Notes
+                };
+
+            var response = await Http.PutAsJsonAsync($"https://jobtracker-api-mille.azurewebsites.net/api/Jobs/{selectedJob.Id}", update);
+
+            if (response.IsSuccessStatusCode)
+            {
+                await LoadApplicationsAsync();
+                CloseModal();
+            }
+        }
+    }
+
+    private async Task DeleteJobAsync()
+    {
+        if (selectedJob is not null)
+        {
+            var response = await Http.DeleteAsync($"https://jobtracker-api-mille.azurewebsites.net/api/Jobs/{selectedJob.Id}");
+
+            if (response.IsSuccessStatusCode)
+            {
+                await LoadApplicationsAsync();
+                CloseModal();
+            }
+        }
+    }
+
+    private string GetStatusClass(string status) =>
+    status switch
+    {
+        "Ansökt" => "badge bg-primary",
+        "Skickat" => "badge bg-info",
+        "Intervju" => "badge bg-warning text-dark",
+        "Avslutat" => "badge bg-danger",
+        "Anställt" => "badge bg-success",
+        _ => "badge bg-secondary"
+    };
+
+    private string TruncateNotes(string? notes, int maxLength)
+    {
+        if (string.IsNullOrEmpty(notes))
+            return string.Empty;
+
+        return notes.Length <= maxLength ? notes : notes.Substring(0, maxLength) + "...";
+    }
+}
+
