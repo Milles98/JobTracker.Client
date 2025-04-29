@@ -4,6 +4,19 @@
 
 <PageTitle>Home</PageTitle>
 
+@if (showCompletedNotification)
+{
+    <div class="position-fixed top-50 start-50 translate-middle" style="z-index: 1100; min-width: 300px;">
+        <div class="toast show align-items-center text-bg-success border-0 shadow-lg" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="d-flex justify-content-center">
+                <div class="toast-body text-center">
+                    ✔ Du har loggat 5 jobb för @completedDate?.ToString("yyyy-MM-dd")!
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
 <div class="container py-5">
     <div class="row justify-content-center">
         <div class="col-12 col-lg-10">
@@ -137,6 +150,8 @@
     private UpdateJobRequest editJob = new();
     private JobApplicationDto? selectedJob;
     private bool companyExists = false;
+    private bool showCompletedNotification = false;
+    private DateTime? completedDate = null;
 
     protected override async Task OnInitializedAsync()
     {
@@ -156,6 +171,7 @@
         {
             newJob = new();
             await LoadApplicationsAsync();
+            CheckDailyCompletion();
         }
     }
 
@@ -267,5 +283,26 @@
         ) ?? false;
     }
 
+    private void CheckDailyCompletion()
+    {
+        var today = DateTime.Today;
+        var todaysJobs = applications
+            ?.Where(j => j.ApplicationDate.Date == today)
+            .ToList();
+
+        if (todaysJobs?.Count == 5)
+        {
+            showCompletedNotification = true;
+            completedDate = today;
+
+            // Dölj efter 5 sekunder
+            _ = Task.Run(async () =>
+            {
+                await Task.Delay(5000);
+                showCompletedNotification = false;
+                StateHasChanged();
+            });
+        }
+    }
 }
 
