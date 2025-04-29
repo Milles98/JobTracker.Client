@@ -50,7 +50,11 @@
                             <label class="form-label">Anteckningar</label>
                             <InputTextArea class="form-control" @bind-Value="newJob.Notes" />
                         </div>
-                        <button type="submit" class="btn btn-primary">Spara jobb</button>
+                        <div class="mb-3">
+                            <label class="form-label">Bekräftelsekod</label>
+                            <InputText class="form-control" @bind-Value="createConfirmationCode" placeholder="Skriv koden för att spara" />
+                        </div>
+                        <button type="submit" class="btn btn-primary" disabled="@(!IsCreateConfirmationValid)">Spara jobb</button>
                     </EditForm>
                 </div>
 
@@ -134,7 +138,7 @@
                                                       @bind="editJob.Notes"
                                                       style="height:auto; min-height: 100px;"
                                                       rows="@editJob.Notes?.Split('\n').Length + 1">
-                                            </textarea>
+                                                </textarea>
                                         </div>
                                         <div class="mb-3">
                                             <label class="form-label">Status</label>
@@ -146,11 +150,15 @@
                                                 <option value="Anställt">Anställt</option>
                                             </InputSelect>
                                         </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">Bekräftelsekod</label>
+                                            <InputText class="form-control" @bind-Value="confirmationCode" placeholder="Skriv koden för att spara eller ta bort" />
+                                        </div>
                                     </div>
                                     <div class="modal-footer">
                                         <button class="btn btn-secondary" @onclick="CloseModal">Avbryt</button>
-                                        <button class="btn btn-danger" @onclick="DeleteJobAsync">Ta bort</button>
-                                        <button class="btn btn-primary" @onclick="UpdateJobAsync">Spara ändringar</button>
+                                        <button class="btn btn-danger" @onclick="DeleteJobAsync" disabled="@(!IsConfirmationValid)">Ta bort</button>
+                                        <button class="btn btn-primary" @onclick="UpdateJobAsync" disabled="@(!IsConfirmationValid)">Spara ändringar</button>
                                     </div>
                                 </div>
                             </div>
@@ -171,6 +179,13 @@
     private bool companyExists = false;
     private bool showCompletedNotification = false;
     private DateTime? completedDate = null;
+    private string confirmationCode = string.Empty;
+    private const string RequiredConfirmationCode = "ok";
+    private string createConfirmationCode = string.Empty;
+    [Inject] private IJSRuntime JS { get; set; } = default!;
+
+    private bool IsCreateConfirmationValid => createConfirmationCode.Trim().ToLowerInvariant() == RequiredConfirmationCode;
+    private bool IsConfirmationValid => confirmationCode.Trim().ToLowerInvariant() == RequiredConfirmationCode;
 
     protected override async Task OnInitializedAsync()
     {
@@ -184,11 +199,18 @@
 
     private async Task CreateJobAsync()
     {
+        if (createConfirmationCode.Trim().ToLowerInvariant() != RequiredConfirmationCode)
+        {
+            await JS.InvokeVoidAsync("alert", "Fel bekräftelsekod. Skriv koden för att spara nytt jobb.");
+            return;
+        }
+
         var response = await Http.PostAsJsonAsync("api/Jobs", newJob);
 
         if (response.IsSuccessStatusCode)
         {
             newJob = new();
+            createConfirmationCode = string.Empty; // Rensa kodfältet
             await LoadApplicationsAsync();
             CheckDailyCompletion();
         }
@@ -217,14 +239,20 @@
             };
     }
 
-
     private void CloseModal()
     {
         selectedJob = null;
+        confirmationCode = string.Empty;
     }
 
     private async Task UpdateJobAsync()
     {
+        if (confirmationCode.Trim().ToLowerInvariant() != RequiredConfirmationCode)
+        {
+            await JS.InvokeVoidAsync("alert", "Fel bekräftelsekod. Skriv koden för att spara ändringar.");
+            return;
+        }
+
         if (selectedJob is not null)
         {
             var update = new UpdateJobRequest
@@ -246,6 +274,12 @@
 
     private async Task DeleteJobAsync()
     {
+        if (confirmationCode.Trim().ToLowerInvariant() != RequiredConfirmationCode)
+        {
+            await JS.InvokeVoidAsync("alert", "Fel bekräftelsekod. Skriv koden för att ta bort.");
+            return;
+        }
+
         if (selectedJob is not null)
         {
             var response = await Http.DeleteAsync($"https://jobtracker-api-mille.azurewebsites.net/api/Jobs/{selectedJob.Id}");
