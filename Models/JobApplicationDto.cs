@@ -8,4 +8,5 @@ public record JobApplicationDto
     public DateTime ApplicationDate { get; init; }
     public string Status { get; init; } = string.Empty;
     public string? Notes { get; init; }
+    public string? Url { get; set; }
 }

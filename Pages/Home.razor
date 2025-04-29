@@ -20,8 +20,8 @@
 <div class="container py-5">
     <div class="row justify-content-center">
         <div class="col-12 col-lg-10">
-            <div class="row g-5">
-                <div class="col-12 col-md-6">
+            <div class="row g-5 flex-column">
+                <div class="col">
                     <h3>Lägg till nytt jobb</h3>
                     <EditForm Model="@newJob" OnValidSubmit="@CreateJobAsync">
                         <DataAnnotationsValidator />
@@ -43,6 +43,10 @@
                             <InputText class="form-control" @bind-Value="newJob.Title" />
                         </div>
                         <div class="mb-3">
+                            <label class="form-label">URL</label>
+                            <InputTextArea class="form-control" @bind-Value="newJob.Url" />
+                        </div>
+                        <div class="mb-3">
                             <label class="form-label">Anteckningar</label>
                             <InputTextArea class="form-control" @bind-Value="newJob.Notes" />
                         </div>
@@ -50,7 +54,7 @@
                     </EditForm>
                 </div>
 
-                <div class="col-12 col-md-6">
+                <div class="col">
                     <h3>Sökta jobb</h3>
                     @if (applications is null)
                     {
@@ -75,6 +79,7 @@
                                             </button>
                                         </th>
                                         <th>Status</th>
+                                        <th>URL</th>
                                         <th style="max-width: 200px;">Anteckningar</th>
                                     </tr>
                                 </thead>
@@ -89,6 +94,12 @@
                                                 <span class="@GetStatusClass(app.Status)">
                                                     @app.Status
                                                 </span>
+                                            </td>
+                                            <td class="text-truncate" style="max-width: 100px;">
+                                                @if (!string.IsNullOrWhiteSpace(app.Url))
+                                                {
+                                                    <a href="@app.Url" target="_blank" rel="noopener noreferrer">@app.Url</a>
+                                                }
                                             </td>
                                             <td class="text-truncate" style="max-width: 200px;">@(TruncateNotes(app.Notes, 50))</td>
                                         </tr>
@@ -112,6 +123,10 @@
                                         </div>
                                         <div class="mb-3">
                                             <strong>Titel:</strong> @selectedJob.Title
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">Url</label>
+                                            <InputText class="form-control" @bind-Value="editJob.Url"/>
                                         </div>
                                         <div class="mb-3">
                                             <label class="form-label">Anteckningar</label>
@@ -181,7 +196,8 @@
         editJob = new UpdateJobRequest
             {
                 Status = job.Status,
-                Notes = job.Notes
+                Notes = job.Notes,
+                Url = job.Url
             };
     }
 
@@ -192,7 +208,8 @@
         editJob = new UpdateJobRequest
             {
                 Status = job.Status,
-                Notes = job.Notes
+                Notes = job.Notes,
+                Url = job.Url
             };
     }
 
@@ -208,8 +225,9 @@
         {
             var update = new UpdateJobRequest
                 {
-                    Status = selectedJob.Status,
-                    Notes = selectedJob.Notes
+                    Status = editJob.Status,
+                    Notes = editJob.Notes,
+                    Url = editJob.Url
                 };
 
             var response = await Http.PutAsJsonAsync($"https://jobtracker-api-mille.azurewebsites.net/api/Jobs/{selectedJob.Id}", update);

@@ -4,4 +4,5 @@ public class UpdateJobRequest
 {
     public string Status { get; set; } = string.Empty;
     public string? Notes { get; set; }
+    public string? Url { get; set; }
 }
