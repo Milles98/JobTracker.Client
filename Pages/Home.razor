@@ -10,7 +10,7 @@
         <div class="toast show align-items-center text-bg-success border-0 shadow-lg" role="alert" aria-live="assertive" aria-atomic="true">
             <div class="d-flex justify-content-center">
                 <div class="toast-body text-center">
-                    ✔ Du har loggat 5 jobb för @completedDate?.ToString("yyyy-MM-dd")!
+                    @encouragementMessage
                 </div>
             </div>
         </div>
@@ -138,7 +138,7 @@
                                                       @bind="editJob.Notes"
                                                       style="height:auto; min-height: 100px;"
                                                       rows="@editJob.Notes?.Split('\n').Length + 1">
-                                                </textarea>
+                                                    </textarea>
                                         </div>
                                         <div class="mb-3">
                                             <label class="form-label">Status</label>
@@ -183,6 +183,7 @@
     private const string RequiredConfirmationCode = "ok";
     private string createConfirmationCode = string.Empty;
     [Inject] private IJSRuntime JS { get; set; } = default!;
+    private string encouragementMessage = string.Empty;
 
     private bool IsCreateConfirmationValid => createConfirmationCode.Trim().ToLowerInvariant() == RequiredConfirmationCode;
     private bool IsConfirmationValid => confirmationCode.Trim().ToLowerInvariant() == RequiredConfirmationCode;
@@ -346,16 +347,30 @@
             ?.Where(j => j.ApplicationDate.Date == today)
             .ToList();
 
-        if (todaysJobs?.Count == 5)
-        {
-            showCompletedNotification = true;
-            completedDate = today;
+        var count = todaysJobs?.Count ?? 0;
 
-            // Dölj efter 5 sekunder
+        encouragementMessage = count switch
+        {
+            1 => "Bra jobbat! Första ansökan för idag ✔",
+            2 => "Snyggt! Två ansökningar skickade 💪",
+            3 => "Du är på gång – tre ansökningar! 🚀",
+            4 => "Nästan där! Fyra jobb idag 🔥",
+            5 => $"✔ Du har loggat 5 jobb för {today:yyyy-MM-dd}! Check på den ✔",
+            6 => $"Du har loggat fler jobb än tänkt, bra jobbat! Måste varit ett spännande jobb",
+            _ when count > 6 => $"Otroligt! {count} jobb idag – grymt fokus! 🏆",
+            _ => string.Empty
+        };
+
+        showCompletedNotification = count >= 1 && count <= 6;
+        completedDate = today;
+
+        if (showCompletedNotification)
+        {
             _ = Task.Run(async () =>
             {
                 await Task.Delay(5000);
                 showCompletedNotification = false;
+                encouragementMessage = string.Empty;
                 StateHasChanged();
             });
         }
