@@ -196,7 +196,15 @@
 
     private async Task LoadApplicationsAsync()
     {
-        applications = await Http.GetFromJsonAsync<List<JobApplicationDto>>("api/Jobs");
+        try
+        {
+            applications = await Http.GetFromJsonAsync<List<JobApplicationDto>>("api/Jobs");
+        }
+        catch (HttpRequestException ex)
+        {
+            await JS.InvokeVoidAsync("alert", "Kunde inte ladda jobbansökningar. Kontrollera din internetanslutning eller försök igen senare.");
+            applications = new List<JobApplicationDto>();
+        }
     }
 
     private async Task CreateJobAsync()
