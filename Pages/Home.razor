@@ -70,6 +70,7 @@
                     }
                     else
                     {
+                        <p><span class="badge bg-secondary">Totalt sökta jobb: @applications?.Count</span></p>
                         <div class="table-responsive-md">
                             <table class="table table-striped table-hover align-middle">
                                 <thead>
@@ -355,7 +356,7 @@
             2 => "Snyggt! Två ansökningar skickade 💪",
             3 => "Du är på gång – tre ansökningar! 🚀",
             4 => "Nästan där! Fyra jobb idag 🔥",
-            5 => $"✔ Du har loggat 5 jobb för {today:yyyy-MM-dd}! Check på den ✔",
+            5 => $"Du har loggat 5 jobb för {today:yyyy-MM-dd}! Check på den ✔",
             6 => $"Du har loggat fler jobb än tänkt, bra jobbat! Måste varit ett spännande jobb",
             _ when count > 6 => $"Otroligt! {count} jobb idag – grymt fokus! 🏆",
             _ => string.Empty
